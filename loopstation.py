@@ -223,8 +223,10 @@ def on_press(key_event):
             t.start()
         else:
             # Stop recording
-            recording_flags[k] = False
-            stop_recording_flags[k].set()
+            if k in recording_flags.keys():
+                recording_flags[k] = False
+            if k in stop_recording_flags.keys():
+                stop_recording_flags[k].set()
     else:
         # Single press: play loop
         if k not in playback_threads or not playback_threads[k].is_alive():
