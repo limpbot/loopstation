@@ -5,7 +5,7 @@ import time
 import os
 #from pynput import keyboard
 import keyboard
-#import numpy as np
+import numpy as np
 #import struct
 
 AUDIO_DIR = os.path.expanduser("./audio_loops")
@@ -57,12 +57,45 @@ def print_pyaudio_infos():
 def get_audio_filename(key):
     return os.path.join(AUDIO_DIR, f"{key}.wav")
 
+
+def play_tone(frequency=440, duration=0.2, volume=0.5, rate=44100):
+    """
+    Play a sine wave tone using PyAudio.
+    frequency: Hz
+    duration: seconds
+    volume: 0.0–1.0
+    rate: sample rate
+    """
+    p = pyaudio.PyAudio()
+
+    # Generate sine wave samples
+    t = np.linspace(0, duration, int(rate * duration), False)
+    tone = volume * np.sin(frequency * 2 * np.pi * t)
+
+    # Convert to float32 bytes
+    audio = tone.astype(np.float32).tobytes()
+
+    # Open output stream
+    stream = p.open(format=pyaudio.paFloat32,
+                    channels=1,
+                    rate=rate,
+                    output=True)
+
+    # Play sound
+    stream.write(audio)
+    stream.stop_stream()
+    stream.close()
+    p.terminate()
+
 def record_audio(key):
     print(f"🎙️  Recording started for '{key}'")
+    
+    play_tone(frequency=880, duration=0.15)   # "recording started"
+
     stop_flag = stop_recording_flags[key] = threading.Event()
     
     p = pyaudio.PyAudio()
-    stream = p.open(format=pyaudio.paInt16,
+    stream = p.open(format=pyaudio.paFloat32, # pyaudio.paInt16,
                     channels=1,
                     rate=44100,
                     input=True,
@@ -76,8 +109,8 @@ def record_audio(key):
     while not stop_flag.is_set():
         data = stream.read(FRAMES_PER_BUFFER)
         #import numpy as np
-        #np_data = np.frombuffer(data, dtype=np.int32)
-        #np_data = np_data # // 10
+        #np_data = np.frombuffer(data, dtype=np.float32)
+        #np_data = np_data 
         #print(np_data.min(),np_data.max())
         #np_data = np_data.astype(dtype=np.int16)
         #print(np_data.min(),np_data.max())
@@ -87,18 +120,21 @@ def record_audio(key):
         frames_times.append(time.time())
     
     end_time = time.time()
-    frames = [ frames[f] for f in range(len(frames)) if (frames_times[f] - start_time) > 0.2 and (end_time - frames_times[f]) > 0.5]
+    frames = [ frames[f] for f in range(len(frames)) if (frames_times[f] - start_time) > 0.5 and (end_time - frames_times[f]) > 0.5]
     stream.stop_stream()
     stream.close()
     p.terminate()
 
     wf = wave.open(get_audio_filename(key), 'wb')
     wf.setnchannels(1)
-    wf.setsampwidth(p.get_sample_size(pyaudio.paInt16))
+    wf.setsampwidth(p.get_sample_size(pyaudio.paFloat32)) # pyaudio.paInt16,
     wf.setframerate(44100)
     wf.writeframes(b''.join(frames))
     wf.close()
+
+
     print(f"💾 Recording saved for '{key}'")
+    play_tone(frequency=440, duration=0.15)   # "recording stopped"
 
 def play_loop(key):
     filepath = get_audio_filename(key)
