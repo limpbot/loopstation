@@ -73,10 +73,11 @@ def play_tone(frequency=440, duration=0.2, volume=0.5, rate=44100):
     tone = volume * np.sin(frequency * 2 * np.pi * t)
 
     # Convert to float32 bytes
-    audio = tone.astype(np.float32).tobytes()
+    # audio = tone.astype(np.float32).tobytes()
+    audio = (tone * 10000).astype(np.int16).tobytes()
 
     # Open output stream
-    stream = p.open(format=pyaudio.paFloat32,
+    stream = p.open(format=pyaudio.paInt16, # paFloat32
                     channels=1,
                     rate=rate,
                     output=True)
@@ -95,7 +96,7 @@ def record_audio(key):
     stop_flag = stop_recording_flags[key] = threading.Event()
     
     p = pyaudio.PyAudio()
-    stream = p.open(format=pyaudio.paFloat32, # pyaudio.paInt16,
+    stream = p.open(format=pyaudio.paInt16, # pyaudio.paInt16,
                     channels=1,
                     rate=44100,
                     input=True,
@@ -127,7 +128,7 @@ def record_audio(key):
 
     wf = wave.open(get_audio_filename(key), 'wb')
     wf.setnchannels(1)
-    wf.setsampwidth(p.get_sample_size(pyaudio.paFloat32)) # pyaudio.paInt16,
+    wf.setsampwidth(p.get_sample_size(pyaudio.paInt16)) # pyaudio.paInt16,
     wf.setframerate(44100)
     wf.writeframes(b''.join(frames))
     wf.close()
