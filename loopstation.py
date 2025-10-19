@@ -1,7 +1,10 @@
+
+import time
+time.sleep(10)
+
 import pyaudio
 import wave
 import threading
-import time
 import os
 #from pynput import keyboard
 import keyboard
@@ -12,11 +15,14 @@ AUDIO_DIR = os.path.expanduser("./audio_loops")
 if not os.path.exists(AUDIO_DIR):
     os.makedirs(AUDIO_DIR)
 
+
+from gpiozero import Button
+
 KEYS = ["a", "s", "d", "e", "f", "g"]
 DOUBLE_PRESS_INTERVAL = 0.5  # seconds
 REP_PRESS_INTERVAL = 0.2  # seconds
 RECORD_SECONDS = 300  # maximum fallback duration
-FRAMES_PER_BUFFER = 4096 # 4096 # 4096
+FRAMES_PER_BUFFER = 4096 # 4096 # (44100 / 4096) ~0.1
 INPUT_DEVICE_ID = None
 OUTPUT_DEVICE_ID = None
 
@@ -155,25 +161,26 @@ def play_loop(key):
             print(f"channels {wf_channels}")
             wf_rate = wf.getframerate()
             print(f"rate {wf_rate} {OUTPUT_DEVICE_ID}")
-            stream = p.open(format=p_format,
-                            channels=wf_channels,
-                            rate=wf_rate,
+            stream = p.open(format=p_format, # p_format , pyaudio.paInt16, 
+                            channels=wf_channels, # wf_channels , 1
+                            rate=wf_rate, # wf_rate , 44100 
                             output_device_index=OUTPUT_DEVICE_ID,
+                            frames_per_buffer=FRAMES_PER_BUFFER,
                             output=True)
             print(f"stream {stream}")
-            data = wf.readframes(FRAMES_PER_BUFFER)
-            while data and playback_flags[key]:
-                #print(f"write data...{data}")
-                #import numpy as np
-                #data_np = np.frombuffer(data, dtype=np.int16)
-                #print(data_np.min(), data_np.max())
-                #num_samples = len(data) // 2
-                #samples = np.frombuffer(data, dtype=np.int16)
-                #eight_channel = np.tile(saples[:, np.newaxis], (1, 8)).ravel()
-                #stereo_data = struct.pack('<' + 'h'*len(eight_channel), *eight_channel)
+            
+            wf_frames = []
+            dataOld = wf.readframes(FRAMES_PER_BUFFER)
+            while dataOld:
+                wf_frames.append(dataOld)
+                dataOld = wf.readframes(FRAMES_PER_BUFFER)
+            
+            i = 0    
+            while playback_flags[key]:
+                print("write data...")
+                data = wf_frames[i % len(wf_frames)]
                 stream.write(data)  # data
-                print("read data...")
-                data = wf.readframes(FRAMES_PER_BUFFER)
+                i = i + 1
             stream.stop_stream()
             stream.close()
             p.terminate()
@@ -259,7 +266,6 @@ def main():
 if __name__ == "__main__":
     print_pyaudio_infos()
     
-    from gpiozero import Button
     button1 = Button(16, pull_up=True)
     button2 = Button(12, pull_up=True)
     button3 = Button(0, pull_up=True)
